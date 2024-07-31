@@ -3,7 +3,15 @@ import { useApi } from "@deephaven/jsapi-bootstrap";
 import Log from "@deephaven/log";
 import { WidgetComponentProps } from "@deephaven/plugin";
 import type { dh } from "@deephaven/jsapi-types";
-import { ActionButton, Button, TextField, View } from "@deephaven/components";
+import {
+  ActionButton,
+  Button,
+  Icon,
+  IconActionButton,
+  TextField,
+  View,
+} from "@deephaven/components";
+import { vsMic, vsMicFilled } from "@deephaven/icons";
 
 const log = Log.module(
   "deephaven-plugin-ptt-input.DeephavenPluginPttInputView"
@@ -105,13 +113,15 @@ export function DeephavenPluginPttInputView(
 
   return (
     <View>
-      <ActionButton
+      <IconActionButton
+        icon={isRecording ? vsMicFilled : vsMic}
+        label="Voice command"
         onPressStart={startRecording}
         onPressEnd={stopRecording}
-        UNSAFE_style={{ backgroundColor: isRecording ? "red" : undefined }}
-      >
-        Record
-      </ActionButton>
+        UNSAFE_style={{
+          color: isRecording ? "var(--dh-color-visual-red)" : undefined,
+        }}
+      />
     </View>
   );
 }
