@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Callable, Union
 
 from deephaven.plugin.object_type import MessageStream
 
@@ -11,8 +12,11 @@ class DeephavenPluginPttInputObject:
     Attributes:
         _connection: MessageStream: The connection to the client
     """
-    def __init__(self):
+    def __init__(self, on_text: Union[Callable[[str], None], None] = None, on_error: Union[Callable[[str], None], None] = None) -> None:
         self._connection: MessageStream = None
+        self.on_text = on_text
+        self.on_error = on_error
+
 
     def send_message(self, message: str) -> None:
         """

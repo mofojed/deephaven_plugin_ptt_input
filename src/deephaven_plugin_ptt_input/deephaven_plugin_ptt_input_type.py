@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 from deephaven.plugin.object_type import MessageStream, BidirectionalObjectType
+import tempfile
 import whisper
 
 from .deephaven_plugin_ptt_input_object import DeephavenPluginPttInputObject
@@ -24,6 +25,7 @@ class DeephavenPluginPttInputMessageStream(MessageStream):
 
         # Start the message stream. All we do is send a blank message to start. Client will respond with the initial state.
         self._client_connection.on_data(b"", [])
+        self.obj = obj
 
         obj._set_connection(self)
 
@@ -54,26 +56,20 @@ class DeephavenPluginPttInputMessageStream(MessageStream):
             print("Received empty stream payload")
             return
         
-        # decoded_payload = payload.decode("")
         print(f"Received payload of type: {type(payload)}")
 
         # Decode the payload...
         try:
             import __main__
 
-            # wav, samplerate = soundfile.read(io.BytesIO(payload), dtype='int16', format='RAW')
-            # recognizer = KaldiRecognizer(model, samplerate)
-            # print("Setting globallll")
-            # __main__.__dict__["dh_payload"] = payload
-            # result = model.transcribe(payload)
-            # print("Recognizer result:")
-            # print(result)
             # TODO: We shouldn't need to write to an intermediate file...
-            with open('__dh_transcribe.wav', mode='bx') as f:
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False, mode="bx") as f:
                 f.write(payload)
-            result = model.transcribe('__dh_transcribe.wav')
-            print("Transcribe result:")
-            print(result['text'])
+                result = model.transcribe(f.name)
+                print("Transcribe result:")
+                print(result['text'])
+                self.obj.on_text(result['text'])
+                f.close()
         except Exception as e:
             print(f"Error recognizing speech: {e}")
 
