@@ -1,9 +1,9 @@
-import React, { CSSProperties, useEffect, useState } from "react";
+import React, { CSSProperties, useCallback, useEffect, useState } from "react";
 import { useApi } from "@deephaven/jsapi-bootstrap";
 import Log from "@deephaven/log";
 import { WidgetComponentProps } from "@deephaven/plugin";
 import type { dh } from "@deephaven/jsapi-types";
-import { Button, TextField } from "@deephaven/components";
+import { ActionButton, Button, TextField, View } from "@deephaven/components";
 
 const log = Log.module(
   "deephaven-plugin-ptt-input.DeephavenPluginPttInputView"
@@ -29,8 +29,9 @@ export function DeephavenPluginPttInputView(
   const [text, setText] = useState<string>(
     "Call send_message on the object and the message will appear here."
   );
-  const [formText, setFormText] = useState("");
   const [widget, setWidget] = useState<dh.Widget | null>(null);
+  const [recorder, setRecorder] = useState<MediaRecorder | null>(null);
+  const isRecording = recorder != null;
   const dh = useApi();
 
   useEffect(() => {
@@ -55,27 +56,61 @@ export function DeephavenPluginPttInputView(
     init();
   }, [dh, fetch]);
 
+  const startRecording = useCallback(async () => {
+    try {
+      // Open up the microphone and start recording
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      // TODO: Use a timeslice value here to send chunks as they come in rather than send it all at once
+      // recorder.start(50);
+      recorder.start();
+      recorder.ondataavailable = (e) => {
+        log.info("Recording data available");
+
+        // Send the recorded audio to the server
+        const reader = new FileReader();
+        reader.onload = async () => {
+          const data = reader.result as ArrayBuffer;
+          const message = new Uint8Array(data);
+          await widget?.sendMessage(message);
+        };
+        reader.readAsArrayBuffer(e.data);
+      };
+
+      recorder.onstop = async () => {
+        log.info("Recording stopped");
+
+        stream.getTracks().forEach((track) => track.stop());
+
+        // Send an empty message to signal the end of the recording
+        await widget?.sendMessage(new Uint8Array());
+      };
+
+      setRecorder(recorder);
+    } catch (e) {
+      log.error("Error starting recording", e);
+    }
+  }, [widget]);
+
+  const stopRecording = useCallback(() => {
+    if (!recorder) {
+      return;
+    }
+
+    recorder.stop();
+    setRecorder(null);
+  }, [recorder]);
+
   return (
-    <div style={DeephavenPluginPttInputViewStyle}>
-      <div>{text}</div>
-      <div>Send a message to the server:</div>
-      <TextField
-        value={formText}
-        onChange={(value) => setFormText(value)}
-        marginBottom="size-50"
-      />
-      <Button
-        onClick={() => {
-          // Send the message to the server via the widget
-          if (widget) {
-            widget.sendMessage(formText, []);
-          }
-        }}
-        kind="primary"
+    <View>
+      <ActionButton
+        onPressStart={startRecording}
+        onPressEnd={stopRecording}
+        UNSAFE_style={{ backgroundColor: isRecording ? "red" : undefined }}
       >
-        Send
-      </Button>
-    </div>
+        Record
+      </ActionButton>
+    </View>
   );
 }
 
