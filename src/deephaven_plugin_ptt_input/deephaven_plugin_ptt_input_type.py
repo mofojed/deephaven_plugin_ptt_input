@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-import io
 from typing import Any
 from deephaven.plugin.object_type import MessageStream, BidirectionalObjectType
+import whisper
 
 from .deephaven_plugin_ptt_input_object import DeephavenPluginPttInputObject
+
+model = whisper.load_model("base")
 
 # Create a custom message stream to send messages to the client
 
@@ -48,8 +50,32 @@ class DeephavenPluginPttInputMessageStream(MessageStream):
         # This is where you would process the payload.
         # This is just an acknowledgement that the payload was received,
         # so print.
-        payload = io.BytesIO(payload).read().decode()
-        print(f"Received payload: {payload}")
+        if len(bytearray(payload)) == 0:
+            print("Received empty stream payload")
+            return
+        
+        # decoded_payload = payload.decode("")
+        print(f"Received payload of type: {type(payload)}")
+
+        # Decode the payload...
+        try:
+            import __main__
+
+            # wav, samplerate = soundfile.read(io.BytesIO(payload), dtype='int16', format='RAW')
+            # recognizer = KaldiRecognizer(model, samplerate)
+            # print("Setting globallll")
+            # __main__.__dict__["dh_payload"] = payload
+            # result = model.transcribe(payload)
+            # print("Recognizer result:")
+            # print(result)
+            # TODO: We shouldn't need to write to an intermediate file...
+            with open('__dh_transcribe.wav', mode='bx') as f:
+                f.write(payload)
+            result = model.transcribe('__dh_transcribe.wav')
+            print("Transcribe result:")
+            print(result['text'])
+        except Exception as e:
+            print(f"Error recognizing speech: {e}")
 
     def on_close(self) -> None:
         """

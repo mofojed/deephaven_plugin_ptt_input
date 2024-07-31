@@ -59,7 +59,9 @@ export function DeephavenPluginPttInputView(
   const startRecording = useCallback(async () => {
     try {
       // Open up the microphone and start recording
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { sampleRate: 12000 },
+      });
       const recorder = new MediaRecorder(stream);
       // TODO: Use a timeslice value here to send chunks as they come in rather than send it all at once
       // recorder.start(50);
@@ -71,8 +73,8 @@ export function DeephavenPluginPttInputView(
         const reader = new FileReader();
         reader.onload = async () => {
           const data = reader.result as ArrayBuffer;
-          const message = new Uint8Array(data);
-          await widget?.sendMessage(message);
+          // const message = new Uint16Array(data);
+          await widget?.sendMessage(data);
         };
         reader.readAsArrayBuffer(e.data);
       };
