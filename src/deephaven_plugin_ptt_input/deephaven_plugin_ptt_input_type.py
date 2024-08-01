@@ -2,8 +2,11 @@ from __future__ import annotations
 
 from typing import Any
 from deephaven.plugin.object_type import MessageStream, BidirectionalObjectType
+import logging
 import tempfile
 import whisper
+
+logger = logging.getLogger(__name__)
 
 from .deephaven_plugin_ptt_input_object import DeephavenPluginPttInputObject
 
@@ -53,10 +56,11 @@ class DeephavenPluginPttInputMessageStream(MessageStream):
         # This is just an acknowledgement that the payload was received,
         # so print.
         if len(bytearray(payload)) == 0:
-            print("Received empty stream payload")
+            logger.debug("Received empty stream payload")
+            # print("Received empty stream payload")
             return
         
-        print(f"Received payload of type: {type(payload)}")
+        # print(f"Received payload of type: {type(payload)}")
 
         # Decode the payload...
         try:
@@ -65,9 +69,8 @@ class DeephavenPluginPttInputMessageStream(MessageStream):
             # TODO: We shouldn't need to write to an intermediate file...
             with tempfile.NamedTemporaryFile(suffix=".wav", delete=False, mode="bx") as f:
                 f.write(payload)
-                result = model.transcribe(f.name)
-                print("Transcribe result:")
-                print(result['text'])
+                result = model.transcribe(f.name, fp16=False)
+                logger.debug(f"Transcribed voice command: {result['text']}")
                 self.obj.on_text(result['text'])
                 f.close()
         except Exception as e:

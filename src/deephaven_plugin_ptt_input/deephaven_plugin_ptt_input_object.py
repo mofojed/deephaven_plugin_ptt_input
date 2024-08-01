@@ -1,7 +1,10 @@
 from __future__ import annotations
 from typing import Callable, Union
+import logging
 
 from deephaven.plugin.object_type import MessageStream
+
+logger = logging.getLogger(__name__)
 
 class DeephavenPluginPttInputObject:
     """

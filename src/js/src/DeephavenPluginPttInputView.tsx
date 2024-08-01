@@ -1,44 +1,28 @@
-import React, { CSSProperties, useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useApi } from "@deephaven/jsapi-bootstrap";
 import Log from "@deephaven/log";
 import { WidgetComponentProps } from "@deephaven/plugin";
 import type { dh } from "@deephaven/jsapi-types";
 import {
   ActionButton,
-  Button,
   Icon,
-  IconActionButton,
-  TextField,
+  LoadingSpinner,
   View,
 } from "@deephaven/components";
 import { vsMic, vsMicFilled } from "@deephaven/icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 const log = Log.module(
   "deephaven-plugin-ptt-input.DeephavenPluginPttInputView"
 );
 
-// Create a custom style for the component
-export const DeephavenPluginPttInputViewStyle: CSSProperties = {
-  // CSS variables can be used to style the component according to the theme
-  color: "var(--dh-color-purple-700)",
-  fontSize: "x-large",
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center",
-  height: "100%",
-  width: "100%",
-  flexDirection: "column",
-};
-
 export function DeephavenPluginPttInputView(
   props: WidgetComponentProps
 ): JSX.Element {
   const { fetch } = props;
-  const [text, setText] = useState<string>(
-    "Call send_message on the object and the message will appear here."
-  );
   const [widget, setWidget] = useState<dh.Widget | null>(null);
   const [recorder, setRecorder] = useState<MediaRecorder | null>(null);
+  const [isPending, setIsPending] = useState(false);
   const isRecording = recorder != null;
   const dh = useApi();
 
@@ -47,18 +31,6 @@ export function DeephavenPluginPttInputView(
       // Fetch the widget from the server
       const fetched_widget = (await fetch()) as dh.Widget;
       setWidget(fetched_widget);
-
-      // Add an event listener to the widget to listen for messages from the server
-      fetched_widget.addEventListener<dh.Widget>(
-        dh.Widget.EVENT_MESSAGE,
-        ({ detail }) => {
-          // When a message is received, update the text in the component
-          const text = detail.getDataAsString();
-          if (text) {
-            setText(text);
-          }
-        }
-      );
     }
 
     init();
@@ -80,9 +52,11 @@ export function DeephavenPluginPttInputView(
         // Send the recorded audio to the server
         const reader = new FileReader();
         reader.onload = async () => {
+          setIsPending(true);
           const data = reader.result as ArrayBuffer;
           // const message = new Uint16Array(data);
           await widget?.sendMessage(data);
+          setIsPending(false);
         };
         reader.readAsArrayBuffer(e.data);
       };
@@ -91,9 +65,6 @@ export function DeephavenPluginPttInputView(
         log.info("Recording stopped");
 
         stream.getTracks().forEach((track) => track.stop());
-
-        // Send an empty message to signal the end of the recording
-        await widget?.sendMessage(new Uint8Array());
       };
 
       setRecorder(recorder);
@@ -111,17 +82,33 @@ export function DeephavenPluginPttInputView(
     setRecorder(null);
   }, [recorder]);
 
+  useEffect(() => {
+    if (!isPending) {
+      // Send an empty message to signal the end of the recording
+      widget?.sendMessage(new Uint8Array());
+    }
+  }, [isPending]);
+
   return (
     <View>
-      <IconActionButton
-        icon={isRecording ? vsMicFilled : vsMic}
-        label="Voice command"
+      <ActionButton
+        aria-label="Voice command"
         onPressStart={startRecording}
         onPressEnd={stopRecording}
+        onBlur={stopRecording}
+        isDisabled={isPending}
         UNSAFE_style={{
           color: isRecording ? "var(--dh-color-visual-red)" : undefined,
         }}
-      />
+      >
+        {isPending ? (
+          <LoadingSpinner />
+        ) : (
+          <Icon>
+            <FontAwesomeIcon icon={isRecording ? vsMicFilled : vsMic} />
+          </Icon>
+        )}
+      </ActionButton>
     </View>
   );
 }
